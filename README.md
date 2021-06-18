@@ -25,6 +25,9 @@ _Hint:_
 
 **Transaction**s between ethereum accounts will modify the state. There are two type of accounts:
 
+![99A4BB4C5B06E69F0F](https://user-images.githubusercontent.com/78368735/122595570-0d531d80-d03f-11eb-872e-5c99297f8bcd.png)
+
+
 - EOA: External Owned Account
 - CA: Contract Account
   Transaction between EOA and EOA or CA, is normally called Transaction.
@@ -37,6 +40,9 @@ There exists a special variant of a message call, named **delegatecall** which i
 This means that a contract can dynamically load code from a different address at runtime. Storage, current address and balance still refer to the calling contract, only the code is taken from the called address.
 
 This makes it possible to implement the “library” feature in Solidity: Reusable library code that can be applied to a contract’s storage, e.g. in order to implement a complex data structure.
+
+![99A41F465B06EC060F](https://user-images.githubusercontent.com/78368735/122595607-1a700c80-d03f-11eb-8fc8-3276e9366eb6.png)
+
 
 `<address>.delegatecall(bytes memory) returns (bool, bytes memory)`
 
