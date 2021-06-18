@@ -1,39 +1,65 @@
-# Solidity Game - [Game Title] Attack
+# Solidity Game - Delegation Attack - `delegatecall` Risk
 
-_Inspired by OpenZeppelin's [Ethernaut](https://ethernaut.openzeppelin.com), [Game Title] Level_
+_Inspired by OpenZeppelin's [Ethernaut](https://ethernaut.openzeppelin.com), Delegation Level_
 
 ⚠️Do not try on mainnet!
 
 ## Task
 
-Hacker the basic token contract below.
-
-1. You are given 20 tokens to start with and you will beat the game if you somehow manage to get your hands on any additional tokens. Preferably a very large amount of tokens.
+Claim ownership of the target contract below.
 
 _Hint:_
 
-1. What is an odometer?
+1. Look into Solidity's documentation on the `delegatecall` low level function, how it works, how it can be used to delegate operations to on-chain libraries, and what implications it has on execution scope.
+2. Fallback methods
+3. Method ids
 
 ## What will you learn?
 
-1. Solidity Security Consideration
-2. **Underflow** and **Overflow** in use of unsigned integers
+1. `delegatecall` vs `call`
+2. How to get method signature.
 
 ## What is the most difficult challenge?
 
-**You won't get success to attack if the target contract has been complied in Solidity 0.8.0 or uppper** 🤔
+**Transaction**
 
-> [**Solidity v0.8.0 Breaking Changes**](https://docs.soliditylang.org/en/v0.8.5/080-breaking-changes.html?highlight=underflow#silent-changes-of-the-semantics)
->
-> Arithmetic operations revert on **underflow** and **overflow**. You can use `unchecked { ... }` to use the previous wrapping behaviour.
->
-> Checks for overflow are very common, so we made them the default to increase readability of code, even if it comes at a slight increase of gas costs.
+**Transaction**s between ethereum accounts will modify the state. There are two type of accounts:
 
-I had tried to do everything in Solidity 0.8.5 at first time, but it didn't work, as it reverted transactions everytime it met underflow.
+- EOA: External Owned Account
+- CA: Contract Account
+  Transaction between EOA and EOA or CA, is normally called Transaction.
+  Transaction between CA and CA, is called Internal Transaction.
 
-Finally, I found that Solidity included those checks by defaults while using sliencely more gas.
+**Delegatecall / Callcode and Libraries**
 
-So, don't you need to use [`SafeMath`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/SafeMath.sol)?
+There exists a special variant of a message call, named **delegatecall** which is identical to a message call apart from the fact that the code at the target address is executed in the context of the calling contract and `msg.sender` and `msg.value` do not change their values.
+
+This means that a contract can dynamically load code from a different address at runtime. Storage, current address and balance still refer to the calling contract, only the code is taken from the called address.
+
+This makes it possible to implement the “library” feature in Solidity: Reusable library code that can be applied to a contract’s storage, e.g. in order to implement a complex data structure.
+
+`<address>.delegatecall(bytes memory) returns (bool, bytes memory)`
+
+issue low-level `DELEGATECALL` with the given payload, returns success condition and return data, forwards all available gas, adjustable
+
+**Function Signature**
+
+Function Signature or another name of Method id, is the first 4 bytes of hash of the function signature.
+
+Example:
+
+```
+bytes memory payload = abi.encodeWithSignature("register(string)", "MyName");
+(bool success, bytes memory returnData) = address(nameReg).call(payload);
+require(success);
+```
+
+**Security Consideration**
+Due to the fact that the EVM considers a call to a non-existing contract to always succeed, Solidity includes an extra check using the `extcodesize` opcode when performing external calls. This ensures that the contract that is about to be called either actually exists (it contains code) or an exception is raised.
+
+The low-level calls which operate on addresses rather than contract instances (i.e. `.call()`, `.delegatecall()`, `.staticcall()`, `.send()` and `.transfer()`) do not include this check, which makes them cheaper in terms of gas but also less safe.
+
+All these functions are low-level functions and should be used with care. Specifically, any unknown contract might be malicious and if you call it, you hand over control to that contract which could in turn call back into your contract, so be prepared for changes to your state variables when the call returns.
 
 ## Source Code
 
@@ -41,25 +67,34 @@ So, don't you need to use [`SafeMath`](https://github.com/OpenZeppelin/openzeppe
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.5;
 
-contract Token {
-  mapping(address => uint256) balances;
-  uint256 public totalSupply;
+contract Delegate {
+  address public owner;
 
-  constructor(uint256 _initialSupply) public {
-    balances[msg.sender] = totalSupply = _initialSupply;
+  constructor(address _owner) {
+    owner = _owner;
   }
 
-  function transfer(address _to, uint256 _value) public returns (bool) {
-    require(balances[msg.sender] - _value >= 0);
-    balances[msg.sender] -= _value;
-    balances[_to] += _value;
-    return true;
+  function pwn() public {
+    owner = msg.sender;
+  }
+}
+
+contract Delegation {
+  address public owner;
+  Delegate delegate;
+
+  constructor(address _delegateAddress) {
+    delegate = Delegate(_delegateAddress);
+    owner = msg.sender;
   }
 
-  function balanceOf(address _owner) public view returns (uint256 balance) {
-    return balances[_owner];
+  fallback() external {
+    (bool result, bytes memory data) = address(delegate).delegatecall(msg.data);
+    if (result) {
+      this;
+    }
   }
 }
 
@@ -104,7 +139,7 @@ Compiling your contracts...
 
 
   Contract: Hacker
-    √ should steal countless of tokens (377ms)
+    √ should claim ownership (327ms)
 
 
   1 passing (440ms)
