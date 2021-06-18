@@ -48,13 +48,14 @@ Function Signature or another name of Method id, is the first 4 bytes of hash of
 
 Example:
 
-```
+```solidity
 bytes memory payload = abi.encodeWithSignature("register(string)", "MyName");
 (bool success, bytes memory returnData) = address(nameReg).call(payload);
 require(success);
 ```
 
 **Security Consideration**
+
 Due to the fact that the EVM considers a call to a non-existing contract to always succeed, Solidity includes an extra check using the `extcodesize` opcode when performing external calls. This ensures that the contract that is about to be called either actually exists (it contains code) or an exception is raised.
 
 The low-level calls which operate on addresses rather than contract instances (i.e. `.call()`, `.delegatecall()`, `.staticcall()`, `.send()` and `.transfer()`) do not include this check, which makes them cheaper in terms of gas but also less safe.
