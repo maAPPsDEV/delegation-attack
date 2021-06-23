@@ -24,7 +24,9 @@ contract Hacker {
 
     /// Assembly version
     assembly {
+      // Load the length (first 32 bytes)
       let len := mload(sig)
+      // Skip over the length field.
       let data := add(sig, 0x20)
       pop(
         // discard result
